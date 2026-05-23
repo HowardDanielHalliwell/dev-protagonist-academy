@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { supabase } from './supabase.js';
 
 const TF = {
   sans: "var(--font-sans)",
@@ -496,11 +497,52 @@ for a, b in pares:
 ];
 
 /* ================================================================
-   STORAGE
+   STORAGE — localStorage (offline) + Supabase (cloud)
 ================================================================ */
 const STORAGE = "dpa_v2";
-const loadP = () => { try { const s=localStorage.getItem(STORAGE); return s?JSON.parse(s):{done:{},xp:0,streak:0,lastVisit:null}; } catch{return{done:{},xp:0,streak:0,lastVisit:null};} };
-const saveP = (p) => { try{localStorage.setItem(STORAGE,JSON.stringify(p));}catch{} };
+
+const loadP = () => {
+  try {
+    const s = localStorage.getItem(STORAGE);
+    return s ? JSON.parse(s) : { done:{}, xp:0, streak:0, lastVisit:null };
+  } catch {
+    return { done:{}, xp:0, streak:0, lastVisit:null };
+  }
+};
+
+const saveP = (p) => {
+  try { localStorage.setItem(STORAGE, JSON.stringify(p)); } catch {}
+};
+
+const loadFromSupabase = async (userId) => {
+  const { data, error } = await supabase
+    .from('progress')
+    .select('done, xp, streak, last_visit')
+    .eq('user_id', userId)
+    .single();
+  if (error || !data) return null;
+  return { done: data.done||{}, xp: data.xp||0, streak: data.streak||0, lastVisit: data.last_visit };
+};
+
+const saveToSupabase = async (userId, p) => {
+  await supabase.from('progress').upsert({
+    user_id:    userId,
+    done:       p.done,
+    xp:         p.xp,
+    streak:     p.streak,
+    last_visit: p.lastVisit,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id' });
+};
+
+const migrateLocalToSupabase = async (userId) => {
+  const local = loadP();
+  const hasLocal = Object.keys(local.done).length > 0 || local.xp > 0;
+  if (!hasLocal) return null;
+  await saveToSupabase(userId, local);
+  localStorage.removeItem(STORAGE);
+  return local;
+};
 
 const updateStreak = (p) => {
   const today = new Date().toDateString();
@@ -1059,6 +1101,124 @@ function LevelView({level,progress,onLesson,onBack}){
 }
 
 /* ================================================================
+   AUTH MODAL
+================================================================ */
+function AuthModal({ onClose, onAuth }) {
+  const [mode, setMode]         = useState('login');
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
+
+  const handleGoogle = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    });
+    if (error) setError(error.message);
+    setLoading(false);
+  };
+
+  const handleEmail = async () => {
+    if (!email || !password) { setError('Completa todos los campos'); return; }
+    setLoading(true); setError('');
+    const fn = mode === 'login'
+      ? supabase.auth.signInWithPassword({ email, password })
+      : supabase.auth.signUp({ email, password });
+    const { data, error } = await fn;
+    if (error) { setError(error.message); setLoading(false); return; }
+    if (data?.user) onAuth(data.user);
+    setLoading(false);
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:60,background:"rgba(28,17,8,0.55)",
+      backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",
+      padding:"0 var(--pad-page)"}}
+      onClick={onClose}>
+      <div style={{background:"#f7f4ef",borderRadius:20,width:"100%",maxWidth:400,
+        padding:"28px 24px"}}
+        onClick={e=>e.stopPropagation()}>
+
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
+          <div>
+            <div style={{fontSize:9,color:"#b0a090",letterSpacing:3,
+              fontFamily:"var(--font-mono)",marginBottom:4}}>
+              {mode==='login'?'INICIAR SESIÓN':'CREAR CUENTA'}
+            </div>
+            <div style={{fontSize:18,fontWeight:800,color:"#1c1108",
+              fontFamily:"var(--font-sans)",letterSpacing:-0.5}}>
+              Guarda tu progreso
+            </div>
+          </div>
+          <button onClick={onClose}
+            style={{background:"#ffffff",border:"1px solid #e4ddd4",color:"#8c7c6c",
+              width:34,height:34,borderRadius:9,cursor:"pointer",fontSize:16,
+              display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+        </div>
+
+        <button onClick={handleGoogle} disabled={loading}
+          style={{width:"100%",padding:"11px 16px",borderRadius:10,border:"1px solid #e4ddd4",
+            background:"#ffffff",cursor:"pointer",fontSize:13,fontWeight:600,
+            color:"#1c1108",fontFamily:"var(--font-sans)",display:"flex",
+            alignItems:"center",justifyContent:"center",gap:10,marginBottom:16}}>
+          <svg width="18" height="18" viewBox="0 0 48 48">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+          Continuar con Google
+        </button>
+
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+          <div style={{flex:1,height:"1px",background:"#e4ddd4"}}/>
+          <span style={{fontSize:11,color:"#b0a090",fontFamily:"var(--font-mono)"}}>O</span>
+          <div style={{flex:1,height:"1px",background:"#e4ddd4"}}/>
+        </div>
+
+        <input type="email" placeholder="tu@email.com" value={email}
+          onChange={e=>setEmail(e.target.value)}
+          style={{width:"100%",padding:"10px 14px",borderRadius:9,border:"1px solid #e4ddd4",
+            background:"#ffffff",fontSize:13,fontFamily:"var(--font-sans)",
+            color:"#1c1108",marginBottom:10,boxSizing:"border-box",outline:"none"}}/>
+        <input type="password" placeholder="Contraseña" value={password}
+          onChange={e=>setPassword(e.target.value)}
+          onKeyDown={e=>e.key==='Enter'&&handleEmail()}
+          style={{width:"100%",padding:"10px 14px",borderRadius:9,border:"1px solid #e4ddd4",
+            background:"#ffffff",fontSize:13,fontFamily:"var(--font-sans)",
+            color:"#1c1108",marginBottom:12,boxSizing:"border-box",outline:"none"}}/>
+
+        {error && (
+          <div style={{fontSize:12,color:"#dc2626",marginBottom:12,
+            fontFamily:"var(--font-sans)",padding:"8px 12px",
+            background:"#fef2f2",borderRadius:7,border:"1px solid #fecaca"}}>
+            {error}
+          </div>
+        )}
+
+        <button onClick={handleEmail} disabled={loading}
+          style={{width:"100%",padding:"11px 16px",borderRadius:10,
+            border:"1px solid #05966940",background:"#05966912",
+            cursor:"pointer",fontSize:12,fontWeight:700,letterSpacing:1,
+            color:"#059669",fontFamily:"var(--font-mono)",marginBottom:14}}>
+          {loading ? 'CARGANDO...' : mode==='login' ? 'INICIAR SESIÓN' : 'CREAR CUENTA'}
+        </button>
+
+        <div style={{textAlign:"center",fontSize:12,color:"#8c7c6c",fontFamily:"var(--font-sans)"}}>
+          {mode==='login' ? '¿Sin cuenta? ' : '¿Ya tienes cuenta? '}
+          <span onClick={()=>{setMode(mode==='login'?'register':'login');setError('');}}
+            style={{color:"#059669",cursor:"pointer",fontWeight:600}}>
+            {mode==='login' ? 'Regístrate' : 'Inicia sesión'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
    ACHIEVEMENTS PANEL
 ================================================================ */
 function AchievementsPanel({progress,onClose}){
@@ -1128,7 +1288,7 @@ function AchievementsPanel({progress,onClose}){
 /* ================================================================
    HOME
 ================================================================ */
-function Home({curriculum,progress,onLevel}){
+function Home({curriculum,progress,onLevel,user,onLoginClick,onLogout}){
   const [showAch,setShowAch]=useState(false);
   const totalL=curriculum.reduce((a,l)=>a+l.lessons.length,0);
   const doneL=Object.keys(progress.done).length;
@@ -1145,7 +1305,31 @@ function Home({curriculum,progress,onLevel}){
         <div style={{position:"absolute",top:-80,left:"50%",transform:"translateX(-50%)",width:400,height:400,borderRadius:"50%",background:"radial-gradient(circle,#f59e0b08 0%,transparent 65%)",pointerEvents:"none",filter:"blur(20px)"}}/>
 
         <div style={{position:"relative"}}>
-          <div style={{fontSize:9,letterSpacing:5,color:"#b0a090",marginBottom:12,fontFamily:"var(--font-mono)"}}>DEV PROTAGONIST · DANNY · CHALCO MX</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div style={{fontSize:9,letterSpacing:5,color:"#b0a090",fontFamily:"var(--font-mono)"}}>DEV PROTAGONIST · DANNY · CHALCO MX</div>
+            {user ? (
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{width:28,height:28,borderRadius:"50%",background:"#05966915",
+                  border:"1px solid #05966940",display:"flex",alignItems:"center",
+                  justifyContent:"center",fontSize:11,color:"#059669",fontWeight:700,
+                  fontFamily:"var(--font-mono)"}}>
+                  {(user.email||'?')[0].toUpperCase()}
+                </div>
+                <button onClick={onLogout}
+                  style={{background:"none",border:"none",fontSize:10,color:"#b0a090",
+                    cursor:"pointer",fontFamily:"var(--font-mono)",letterSpacing:1,padding:0}}>
+                  SALIR
+                </button>
+              </div>
+            ) : (
+              <button onClick={onLoginClick}
+                style={{background:"#05966912",border:"1px solid #05966940",color:"#059669",
+                  fontSize:9,padding:"6px 14px",borderRadius:7,cursor:"pointer",
+                  letterSpacing:2,fontFamily:"var(--font-mono)",fontWeight:700}}>
+                GUARDAR PROGRESO
+              </button>
+            )}
+          </div>
 
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}}>
             <div>
@@ -1280,35 +1464,93 @@ function Home({curriculum,progress,onLevel}){
    APP ROOT
 ================================================================ */
 export default function App(){
-  const [progress,setProgress]=useState(loadP);
-  const [view,setView]=useState("home");
-  const [selLevel,setSelLevel]=useState(null);
-  const [selLesson,setSelLesson]=useState(null);
+  const [progress, setProgress]   = useState(loadP);
+  const [view, setView]           = useState("home");
+  const [selLevel, setSelLevel]   = useState(null);
+  const [selLesson, setSelLesson] = useState(null);
+  const [user, setUser]           = useState(null);
+  const [showAuth, setShowAuth]   = useState(false);
+  const [authReady, setAuthReady] = useState(false);
 
-  useEffect(()=>{ setProgress(p=>updateStreak(p)); },[]);
-  useEffect(()=>saveP(progress),[progress]);
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+        const migrated = await migrateLocalToSupabase(session.user.id);
+        const remote   = migrated || await loadFromSupabase(session.user.id);
+        if (remote) setProgress(updateStreak(remote));
+      }
+      setAuthReady(true);
+    });
 
-  // Unlock levels dynamically
-  const curriculum=LEVELS.map((lvl,i)=>{
-    if(i<=1) return{...lvl,locked:false};
-    const prev=LEVELS[i-1];
-    const prevDone=prev.lessons.length>0&&prev.lessons.every(l=>progress.done[l.id]);
-    return{...lvl,locked:!prevDone};
-  });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user);
+          setShowAuth(false);
+          const migrated = await migrateLocalToSupabase(session.user.id);
+          const remote   = migrated || await loadFromSupabase(session.user.id);
+          if (remote) setProgress(updateStreak(remote));
+        }
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setProgress(loadP());
+        }
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, []);
 
-  const handleComplete=(id,xp)=>{
-    setProgress(p=>{
-      if(p.done[id]) return p;
-      return{...p,done:{...p.done,[id]:true},xp:p.xp+xp};
+  useEffect(() => {
+    if (!user) setProgress(p => updateStreak(p));
+  }, []);
+
+  useEffect(() => {
+    saveP(progress);
+    if (user) saveToSupabase(user.id, progress);
+  }, [progress, user]);
+
+  const handleComplete = (id, xp) => {
+    setProgress(p => {
+      if (p.done[id]) return p;
+      return { ...p, done:{...p.done,[id]:true}, xp:p.xp+xp };
     });
   };
 
-  if(view==="lesson"&&selLesson&&selLevel){
-    return <LessonView lesson={selLesson} level={selLevel} done={!!progress.done[selLesson.id]} onComplete={handleComplete} onBack={()=>setView("level")}/>;
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (!authReady) return (
+    <div style={{height:"100vh",display:"flex",alignItems:"center",
+      justifyContent:"center",background:"#f7f4ef"}}>
+      <div style={{fontSize:9,color:"#b0a090",letterSpacing:3,
+        fontFamily:"var(--font-mono)"}}>CARGANDO...</div>
+    </div>
+  );
+
+  const curriculum = LEVELS.map((lvl,i) => {
+    if(i<=1) return{...lvl,locked:false};
+    const prev = LEVELS[i-1];
+    const prevDone = prev.lessons.length>0 && prev.lessons.every(l=>progress.done[l.id]);
+    return{...lvl,locked:!prevDone};
+  });
+
+  if(view==="lesson" && selLesson && selLevel){
+    return <LessonView lesson={selLesson} level={selLevel} done={!!progress.done[selLesson.id]}
+      onComplete={handleComplete} onBack={()=>setView("level")}/>;
   }
-  if(view==="level"&&selLevel){
-    const enriched=curriculum.find(l=>l.id===selLevel.id);
-    return <LevelView level={enriched} progress={progress} onLesson={l=>{setSelLesson(l);setView("lesson");}} onBack={()=>setView("home")}/>;
+  if(view==="level" && selLevel){
+    const enriched = curriculum.find(l=>l.id===selLevel.id);
+    return <LevelView level={enriched} progress={progress}
+      onLesson={l=>{setSelLesson(l);setView("lesson");}} onBack={()=>setView("home")}/>;
   }
-  return <Home curriculum={curriculum} progress={progress} onLevel={l=>{setSelLevel(l);setView("level");}}/>;
+  return (
+    <>
+      <Home curriculum={curriculum} progress={progress}
+        onLevel={l=>{setSelLevel(l);setView("level");}}
+        user={user} onLoginClick={()=>setShowAuth(true)} onLogout={handleLogout}/>
+      {showAuth && <AuthModal onClose={()=>setShowAuth(false)} onAuth={setUser}/>}
+    </>
+  );
 }

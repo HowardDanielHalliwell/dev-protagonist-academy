@@ -1,0 +1,3 @@
+-- Ya ejecutado en Supabase SQL Editor. Guardado como referencia.
+-- Tabla: progress (id, user_id, done, xp, streak, last_visit, updated_at)
+-- RLS habilitado. Política: own_progress
