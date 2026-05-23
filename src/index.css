@@ -98,6 +98,8 @@ code[class*="language-"] {
 @media (max-width: 480px) {
   /* Pillars: 3 columnas → 1 columna en móvil pequeño */
   .pillars-grid { grid-template-columns: 1fr !important; }
+  /* Stats row: 4 tarjetas → grid 2x2 en móvil */
+  .stats-row { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; }
   /* Nav bar de lección: ocultar texto de botones, solo iconos */
   .nav-btn-text { display: none; }
   /* Dots de navegación: reducir si son muchos */

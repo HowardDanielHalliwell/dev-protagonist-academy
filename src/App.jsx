@@ -1168,7 +1168,7 @@ function Home({curriculum,progress,onLevel}){
           </div>
 
           {/* Stats row */}
-          <div style={{display:"flex",gap:"clamp(8px,3vw,16px)",marginBottom:20}}>
+          <div className="stats-row" style={{display:"flex",gap:"clamp(8px,3vw,16px)",marginBottom:20}}>
             {[
               {label:"LECCIONES",val:`${doneL}/${totalL}`,color:"#059669"},
               {label:"COMPLETADO",val:`${gPct}%`,color:"#0369a1"},
