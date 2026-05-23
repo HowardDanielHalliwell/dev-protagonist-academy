@@ -11,6 +11,11 @@
   --text-2:  #5c4838;
   --text-3:  #8c7c6c;
   --text-4:  #b0a090;
+  --pad-page:    clamp(16px, 5vw, 28px);
+  --pad-section: clamp(14px, 4vw, 24px);
+  --font-hero:   clamp(26px, 7vw, 38px);
+  --font-xp:     clamp(28px, 8vw, 40px);
+  --font-pct:    clamp(22px, 6vw, 32px);
 }
 
 body {
@@ -88,4 +93,13 @@ code[class*="language-"] {
 }
 .section-enter {
   animation: fadeUp 0.3s ease-out forwards;
+}
+
+@media (max-width: 480px) {
+  /* Pillars: 3 columnas → 1 columna en móvil pequeño */
+  .pillars-grid { grid-template-columns: 1fr !important; }
+  /* Nav bar de lección: ocultar texto de botones, solo iconos */
+  .nav-btn-text { display: none; }
+  /* Dots de navegación: reducir si son muchos */
+  .nav-dot { width: 5px !important; height: 5px !important; }
 }

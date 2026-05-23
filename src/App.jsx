@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 
+const TF = {
+  sans: "var(--font-sans)",
+  mono: "var(--font-mono)",
+};
+
 /* ================================================================
    CURRICULUM — 5 NIVELES COMPLETOS
 ================================================================ */
@@ -296,7 +301,29 @@ const LEVELS = [
         sections:[
         {type:"intro", title:"Soluciones a problemas recurrentes", body:"Los patrones de diseño son soluciones probadas a problemas comunes. No los inventas — los reconoces y los aplicas. Son el lenguaje compartido entre developers senior."},
         {type:"code", label:"Patrón Repository", lang:"python", code:`from abc import ABC, abstractmethod\n\nclass AlumnoRepository(ABC):\n    @abstractmethod\n    def guardar(self, alumno): pass\n    @abstractmethod\n    def buscar_por_id(self, id): pass\n\nclass AlumnoMemoriaRepository(AlumnoRepository):\n    def __init__(self): self.datos = {}\n    def guardar(self, alumno):\n        self.datos[alumno.id] = alumno\n    def buscar_por_id(self, id):\n        return self.datos.get(id)\n\n# Puedes cambiar a SupabaseRepository sin cambiar la lógica de negocio`},
-        {type:"exercise", lang:"python", title:"Patrón Observer", prompt:"Implementa el patrón Observer para un sistema de notificaciones: cuando un alumno sube su calificación, notifica automáticamente al maestro y al padre.", hint:"Define una interfaz Observador con método notificar(). El sujeto mantiene una lista de observadores y los notifica al cambiar.", solution:`class Observador:\n    def notificar(self, mensaje): pass\n\nclass Maestro(Observador):\n    def __init__(self, nombre): self.nombre = nombre\n    def notificar(self, msg): print(f"Maestro {self.nombre}: {msg}")\n\nclass Padre(Observador):\n    def __init__(self, nombre): self.nombre = nombre\n    def notificar(self, msg): print(f"Padre {self.nombre}: {msg}")\n\nclass Alumno:\n    def __init__(self, nombre):\n        self.nombre = nombre\n        self.cal = 0\n        self.observadores = []\n    \n    def suscribir(self, obs): self.observadores.append(obs)\n    \n    def actualizar_calificacion(self, cal):\n        self.cal = cal\n        for obs in self.observadores:\n            obs.notificar(f"{self.nombre} tiene nueva cal: {cal}")`},
+        {type:"exercise", lang:"javascript", title:"Patrón Observer", prompt:"Implementa el patrón Observer para un sistema de notificaciones: cuando un alumno sube su calificación, notifica automáticamente al maestro y al padre.", hint:"Crea una clase Alumno con suscribir(obs) y notificarTodos(). Cada observador tiene un método notificar(msg). Usa console.log para ver las notificaciones.", solution:`class Alumno {
+  constructor(nombre) {
+    this.nombre = nombre;
+    this.calificacion = 0;
+    this.observadores = [];
+  }
+  suscribir(obs) { this.observadores.push(obs); }
+  actualizarCalificacion(cal) {
+    this.calificacion = cal;
+    this.observadores.forEach(obs =>
+      obs.notificar(\`\${this.nombre} tiene nueva cal: \${cal}\`)
+    );
+  }
+}
+
+const maestro = { notificar: msg => console.log("Maestro:", msg) };
+const padre   = { notificar: msg => console.log("Padre:", msg) };
+
+const alumno = new Alumno("Danny");
+alumno.suscribir(maestro);
+alumno.suscribir(padre);
+alumno.actualizarCalificacion(9.5);
+alumno.actualizarCalificacion(10);`},
       ]},
       {id:"n4l2", title:"Docker y contenedores", mins:45, xp:280,
         quiz:{question:"¿Qué problema principal resuelve Docker?",options:["Hace el codigo mas seguro automaticamente contra hackers","Elimina el problema 'en mi maquina funciona' empaquetando la app con sus dependencias","Acelera el tiempo de compilacion del codigo","Reemplaza al sistema operativo del servidor"],correct:1,explanation:"Docker empaqueta tu app, su runtime, librerias y configuracion en un contenedor. Este contenedor corre exactamente igual en tu laptop, en el servidor de Render, en AWS. Sin Docker, un dep diferente entre entornos puede hacer fallar el deploy."},
@@ -357,14 +384,56 @@ const LEVELS = [
         sections:[
         {type:"intro", title:"Cómo aprenden las máquinas", body:"Machine Learning es enseñarle a una computadora a aprender de ejemplos en lugar de programar reglas explícitas. En lugar de decirle 'si X entonces Y', le muestras miles de ejemplos y ella descubre el patrón."},
         {type:"code", label:"Tu primer modelo ML con scikit-learn", lang:"python", code:`from sklearn.linear_model import LinearRegression\nimport numpy as np\n\n# Datos: horas de estudio → calificación\nhoras = np.array([[1],[2],[3],[4],[5],[6],[7],[8]])\ncalificaciones = np.array([4, 5, 6, 6.5, 7.5, 8, 9, 9.5])\n\n# Entrenar modelo\nmodelo = LinearRegression()\nmodelo.fit(horas, calificaciones)\n\n# Predecir\nprediccion = modelo.predict([[10]])\nprint(f"Con 10 horas de estudio: {prediccion[0]:.1f}")  # ~10 (no siempre 10 😄)`},
-        {type:"exercise", title:"Clasificador de spam", prompt:"Describe cómo entrenarías un clasificador de spam para los correos del colegio. ¿Qué datos necesitas? ¿Qué algoritmo usarías? ¿Cómo lo evaluarías?", hint:"Piensa en el ciclo completo: datos → features → modelo → evaluación → mejora.", solution:"1. DATOS:\n   - Recolectar 1000+ emails etiquetados: spam/no-spam\n   - Limpiar texto, quitar stopwords\n\n2. FEATURES:\n   - TF-IDF del contenido del email\n   - Longitud del mensaje\n   - Tiene links sospechosos\n   - Frecuencia de palabras clave\n\n3. MODELO:\n   - Naive Bayes (clásico para texto)\n   - O Random Forest para más precisión\n\n4. EVALUACIÓN:\n   - Accuracy, Precision, Recall, F1\n   - Matriz de confusión\n   - Cross-validation\n\n5. MEJORA:\n   - Más datos de entrenamiento\n   - Feature engineering\n   - Hyperparameter tuning"},
+        {type:"exercise", lang:"python", title:"Clasificador de spam simple", prompt:"Implementa un clasificador de spam básico (sin ML externo) usando palabras clave ponderadas. Pruébalo con 3 mensajes: uno obvio spam, uno legítimo, y uno ambiguo.", hint:"Crea un diccionario de palabras spam con pesos. El score de un mensaje es la suma de pesos de palabras encontradas. Umbral > 2 = spam.", solution:`def clasificar_spam(mensaje):
+    palabras_spam = {
+        "gratis": 2, "gana": 2, "premio": 2,
+        "urgente": 1.5, "oferta": 1.5, "dinero": 1.5,
+        "click": 1, "descuento": 1, "100%": 1
+    }
+    texto = mensaje.lower()
+    score = sum(peso for pal, peso in palabras_spam.items() if pal in texto)
+    return "SPAM" if score >= 2 else "Legítimo", score
+
+mensajes = [
+    "GRATIS: Gana dinero urgente, click aquí!!!",
+    "Hola Danny, mañana es la reunión de maestros a las 10am",
+    "Oferta especial para el salón, no urgente"
+]
+
+for msg in mensajes:
+    resultado, score = clasificar_spam(msg)
+    print(f"[{resultado}] (score={score}) → {msg[:40]}...")`},
       ]},
       {id:"n5l2", title:"Cómo funcionan los LLMs por dentro", mins:60, xp:450,
         quiz:{question:"¿Qué son los embeddings en el contexto de los LLMs?",options:["Imagenes embebidas dentro del modelo de IA","Representaciones numericas (vectores) de texto que capturan su significado semantico","El proceso de comprimir el modelo para hacerlo mas pequeno","Los pesos entrenables del transformer"],correct:1,explanation:"Un embedding convierte 'rey' en [0.8, 0.2, 0.9...] (1536+ numeros). La magia: palabras con significado similar tienen vectores similares. Por eso matematicamente: rey - hombre + mujer ≈ reina. Son la base de toda busqueda semantica y de RAG."},
         sections:[
         {type:"intro", title:"La arquitectura Transformer", body:"Los LLMs (Claude, GPT, Gemini) están basados en la arquitectura Transformer (2017). Entender sus piezas — embeddings, atención, capas — te da el poder de usarlos, optimizarlos y eventualmente fine-tunearlos."},
         {type:"code", label:"Embeddings — Texto convertido a números", lang:"python", code:`# Un embedding convierte texto en un vector numérico\n# que captura el SIGNIFICADO semántico\n\n# Conceptualmente:\n"rey"  → [0.8, 0.2, 0.9, 0.1, ...] # 1536 números\n"reina"→ [0.7, 0.8, 0.9, 0.1, ...] # similar a rey\n"pizza"→ [0.1, 0.3, 0.1, 0.9, ...] # muy diferente\n\n# La magia: rey - hombre + mujer ≈ reina\n# Las operaciones matemáticas capturan relaciones semánticas\n\n# Con la API de Anthropic:\nimport anthropic\nclient = anthropic.Anthropic()\n\nresponse = client.messages.create(\n    model="claude-sonnet-4-20250514",\n    max_tokens=100,\n    messages=[{"role":"user","content":"¿Qué es un embedding?"}]\n)`},
-        {type:"exercise", title:"Diseña tu sistema de prompts", prompt:"Diseña un sistema de prompts para una IA educativa del Colegio Mano Amiga. Define: el system prompt, cómo manejas el contexto del alumno, y cómo controlas el tono pedagógico.", hint:"Un buen system prompt define: personalidad, restricciones, formato de respuesta, y contexto de la institución.", solution:`SYSTEM PROMPT:\n"Eres un asistente educativo del Colegio Mano Amiga Chalco.\nTu misión es apoyar el aprendizaje de los alumnos de forma\nsocialmente responsable, siguiendo los valores de la\nDoctrina Social de la Iglesia.\n\nReglas:\n- Responde siempre en español, tono amable y motivador\n- Si el alumno pregunta algo fuera del tema, redirige\n- Adapta la complejidad al grado del alumno\n- Nunca des respuestas directas a tareas — guía el proceso\n- Si detectas dificultades emocionales, deriva al orientador"\n\nCONTEXTO DINÁMICO:\n- Nombre del alumno: {nombre}\n- Grado: {grado}\n- Materia actual: {materia}\n- Historial de la sesión: {mensajes_anteriores}`},
+        {type:"exercise", lang:"python", title:"Simulador de embeddings semánticos", prompt:"Simula cómo funcionan los embeddings usando distancia de coseno entre vectores simples. Implementa similitud_coseno(v1, v2) y compara pares de conceptos.", hint:"La similitud de coseno va de -1 a 1. Vectores similares tienen similitud cercana a 1. Usa listas de 3 dimensiones para representar conceptos.", solution:`import math
+
+def similitud_coseno(v1, v2):
+    dot = sum(a*b for a,b in zip(v1,v2))
+    mag1 = math.sqrt(sum(a**2 for a in v1))
+    mag2 = math.sqrt(sum(b**2 for b in v2))
+    return dot / (mag1 * mag2) if mag1 and mag2 else 0
+
+# Vectores simplificados de 3 dimensiones
+# [educacion, tecnologia, naturaleza]
+conceptos = {
+    "maestro":     [0.9, 0.3, 0.1],
+    "alumno":      [0.8, 0.2, 0.1],
+    "programador": [0.2, 0.9, 0.0],
+    "jardinero":   [0.1, 0.0, 0.9],
+    "AI":          [0.3, 0.95, 0.0],
+}
+
+pares = [("maestro","alumno"), ("maestro","programador"),
+         ("programador","AI"), ("jardinero","AI")]
+
+for a, b in pares:
+    sim = similitud_coseno(conceptos[a], conceptos[b])
+    barra = "█" * int(sim * 10)
+    print(f"{a:12} ↔ {b:12} {barra} {sim:.2f}")`},
       ]},
       {id:"n5l3", title:"Fine-tuning de modelos base", mins:70, xp:500,
         quiz:{question:"¿Qué es LoRA en el contexto del fine-tuning de modelos de lenguaje?",options:["Un framework de Python para entrenar modelos desde cero","Una tecnica eficiente que ajusta solo ~1% de los parametros del modelo agregando matrices pequenas","El nombre del modelo base de Meta","Una metrica para evaluar la calidad del fine-tuning"],correct:1,explanation:"LoRA (Low-Rank Adaptation) agrega matrices pequenas a las capas del transformer en lugar de actualizar todos los miles de millones de parametros. Resultado: fine-tuning con 10x menos GPU y tiempo, con resultados comparables al fine-tuning completo."},
@@ -440,6 +509,26 @@ const updateStreak = (p) => {
   const newStreak = p.lastVisit===yesterday ? (p.streak||0)+1 : 1;
   return{...p,streak:newStreak,lastVisit:today};
 };
+
+/* ================================================================
+   ACHIEVEMENTS
+================================================================ */
+const ACHIEVEMENTS = [
+  { id:"first_blood",  icon:"⚡", title:"Primera línea",      desc:"Completaste tu primera lección",              check: p => Object.keys(p.done).length >= 1 },
+  { id:"n0_complete",  icon:"🛠️", title:"Setup completo",      desc:"Terminaste el Nivel 0",                      check: p => LEVELS[0].lessons.every(l=>p.done[l.id]) },
+  { id:"n1_complete",  icon:"🌱", title:"Fundamentos sólidos", desc:"Terminaste el Nivel 1",                      check: p => LEVELS[1].lessons.every(l=>p.done[l.id]) },
+  { id:"n2_complete",  icon:"🐍", title:"Pythonista",          desc:"Terminaste el Nivel 2",                      check: p => LEVELS[2].lessons.every(l=>p.done[l.id]) },
+  { id:"n3_complete",  icon:"🔌", title:"Backend dev",         desc:"Terminaste el Nivel 3",                      check: p => LEVELS[3].lessons.every(l=>p.done[l.id]) },
+  { id:"n4_complete",  icon:"🏗️", title:"Data engineer",       desc:"Terminaste el Nivel 4",                      check: p => LEVELS[4].lessons.every(l=>p.done[l.id]) },
+  { id:"n5_complete",  icon:"🏆", title:"Senior dev",          desc:"Terminaste el Nivel 5 — el camino completo", check: p => LEVELS[5].lessons.every(l=>p.done[l.id]) },
+  { id:"xp_500",       icon:"💎", title:"500 XP",              desc:"Acumulaste 500 puntos de experiencia",        check: p => p.xp >= 500 },
+  { id:"xp_2000",      icon:"🔮", title:"2,000 XP",            desc:"Acumulaste 2,000 puntos de experiencia",      check: p => p.xp >= 2000 },
+  { id:"xp_5000",      icon:"🌟", title:"5,000 XP",            desc:"Acumulaste 5,000 puntos de experiencia",      check: p => p.xp >= 5000 },
+  { id:"streak_3",     icon:"🔥", title:"En racha",            desc:"3 días consecutivos de práctica",             check: p => (p.streak||0) >= 3 },
+  { id:"streak_7",     icon:"🔥🔥", title:"Semana de fuego",   desc:"7 días consecutivos de práctica",             check: p => (p.streak||0) >= 7 },
+  { id:"half_way",     icon:"🎯", title:"A mitad del camino",  desc:"Completaste 20 lecciones",                    check: p => Object.keys(p.done).length >= 20 },
+  { id:"completionist",icon:"🎓", title:"Protagonista",        desc:"Completaste las 40 lecciones",                check: p => Object.keys(p.done).length >= 40 },
+];
 
 /* ================================================================
    LANG CONFIG — colores por lenguaje
@@ -738,7 +827,7 @@ function renderSection(s, color, i){
     <div key={i} className="section-enter" style={{margin:"22px 0"}}>
       <Tag color={color}>{(s.title||"").toUpperCase()}</Tag>
       {s.note&&<p style={{fontSize:13,color:"#8c7c6c",margin:"10px 0 18px",fontFamily:"var(--font-sans)",lineHeight:1.7}}>{s.note}</p>}
-      <div style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(s.items.length,3)},1fr)`,gap:12}}>
+      <div className="pillars-grid" style={{display:"grid",gridTemplateColumns:`repeat(${Math.min(s.items.length,3)},1fr)`,gap:12}}>
         {s.items.map((p,j)=>(
           <div key={j} style={{background:"#ffffff",border:"1px solid #e4ddd4",borderRadius:12,padding:"22px 16px",textAlign:"center",transition:"all .2s",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}
             onMouseEnter={e=>{e.currentTarget.style.borderColor=`${color}45`;e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow=`0 6px 20px ${color}12`;}}
@@ -823,7 +912,7 @@ function LessonView({lesson,level,done,onComplete,onBack}){
       setTimeout(()=>setBurst(false),1200);
     }
     onComplete(lesson.id,lesson.xp);
-    setTimeout(()=>onBack(),300);
+    onBack();
   };
 
   return(
@@ -854,7 +943,7 @@ function LessonView({lesson,level,done,onComplete,onBack}){
       </div>
 
       {/* Content */}
-      <div style={{flex:1,padding:"32px 24px",maxWidth:720,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
+      <div style={{flex:1,padding:"clamp(16px,4vw,32px) clamp(14px,4vw,24px)",maxWidth:720,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
         {renderSection(steps[sec], color, sec)}
       </div>
 
@@ -862,7 +951,7 @@ function LessonView({lesson,level,done,onComplete,onBack}){
       <div style={{position:"sticky",bottom:0,background:"rgba(247,244,239,0.93)",backdropFilter:"blur(16px)",borderTop:"1px solid #e4ddd4",padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
         <button onClick={()=>setSec(s=>Math.max(0,s-1))} disabled={sec===0}
           style={{background:"#ffffff",border:`1px solid ${sec===0?"#ede8e2":"#e4ddd4"}`,color:sec===0?"#d4ccc4":"#8c7c6c",fontSize:11,padding:"9px 20px",borderRadius:9,cursor:sec===0?"not-allowed":"pointer",letterSpacing:1,transition:"all .2s",fontFamily:"var(--font-mono)",boxShadow:sec===0?"none":"0 1px 3px rgba(0,0,0,0.05)"}}>
-          ← ATRÁS
+          ← <span className="nav-btn-text">ATRÁS</span>
         </button>
 
         {/* Dots */}
@@ -881,7 +970,7 @@ function LessonView({lesson,level,done,onComplete,onBack}){
         ):(
           <button onClick={()=>setSec(s=>Math.min(total-1,s+1))}
             style={{background:`${color}12`,border:`1px solid ${color}45`,color,fontSize:11,padding:"9px 22px",borderRadius:9,cursor:"pointer",letterSpacing:1,transition:"all .2s",fontFamily:"var(--font-mono)"}}>
-            SIGUIENTE →
+            <span className="nav-btn-text">SIGUIENTE</span> →
           </button>
         )}
       </div>
@@ -915,7 +1004,7 @@ function LevelView({level,progress,onLesson,onBack}){
             <div style={{fontSize:12,color:"#8c7c6c",fontFamily:"var(--font-sans)",marginTop:2}}>{level.sub}</div>
           </div>
           <div style={{textAlign:"right"}}>
-            <div style={{fontSize:32,fontWeight:900,color,lineHeight:1,fontFamily:"var(--font-mono)"}}>{pct}%</div>
+            <div style={{fontSize:"var(--font-pct)",fontWeight:900,color,lineHeight:1,fontFamily:"var(--font-mono)"}}>{pct}%</div>
             <div style={{fontSize:9,color:"#b0a090",letterSpacing:1,fontFamily:"var(--font-mono)",marginTop:2}}>{done}/{total} lecciones</div>
           </div>
         </div>
@@ -925,7 +1014,7 @@ function LevelView({level,progress,onLesson,onBack}){
       </div>
 
       {/* Lessons list */}
-      <div style={{flex:1,overflowY:"auto",padding:"20px 24px",display:"flex",flexDirection:"column",gap:10}}>
+      <div style={{flex:1,overflowY:"auto",padding:"var(--pad-section)",display:"flex",flexDirection:"column",gap:10}}>
         {level.locked?(
           <div style={{textAlign:"center",padding:"80px 20px"}}>
             <div style={{fontSize:52,marginBottom:16}}>🔒</div>
@@ -970,9 +1059,77 @@ function LevelView({level,progress,onLesson,onBack}){
 }
 
 /* ================================================================
+   ACHIEVEMENTS PANEL
+================================================================ */
+function AchievementsPanel({progress,onClose}){
+  const unlocked=ACHIEVEMENTS.filter(a=>a.check(progress));
+  const locked=ACHIEVEMENTS.filter(a=>!a.check(progress));
+  const color="#f59e0b";
+
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:50,background:"rgba(28,17,8,0.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+      onClick={onClose}>
+      <div style={{background:"#f7f4ef",borderRadius:"20px 20px 0 0",width:"100%",maxWidth:560,maxHeight:"80vh",overflowY:"auto",padding:"24px var(--pad-page) 32px"}}
+        onClick={e=>e.stopPropagation()}>
+        <div style={{width:40,height:4,background:"#d4ccc4",borderRadius:2,margin:"0 auto 20px"}}/>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <div>
+            <div style={{fontSize:9,color:"#b0a090",letterSpacing:3,fontFamily:"var(--font-mono)",marginBottom:4}}>LOGROS</div>
+            <div style={{fontSize:20,fontWeight:800,color:"#1c1108",fontFamily:"var(--font-sans)",letterSpacing:-0.5}}>
+              {unlocked.length} / {ACHIEVEMENTS.length}
+            </div>
+          </div>
+          <button onClick={onClose}
+            style={{background:"#ffffff",border:"1px solid #e4ddd4",color:"#8c7c6c",width:34,height:34,borderRadius:9,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            ✕
+          </button>
+        </div>
+
+        {unlocked.length>0&&(
+          <>
+            <div style={{fontSize:9,color,letterSpacing:3,fontFamily:"var(--font-mono)",marginBottom:12}}>DESBLOQUEADOS</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
+              {unlocked.map(a=>(
+                <div key={a.id} style={{background:"#ffffff",border:`1px solid ${color}40`,borderLeft:`3px solid ${color}`,borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
+                  <span style={{fontSize:24,flexShrink:0}}>{a.icon}</span>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:700,color:"#1c1108",fontFamily:"var(--font-sans)"}}>{a.title}</div>
+                    <div style={{fontSize:11,color:"#8c7c6c",fontFamily:"var(--font-sans)",marginTop:2}}>{a.desc}</div>
+                  </div>
+                  <div style={{marginLeft:"auto",fontSize:9,color,letterSpacing:2,fontFamily:"var(--font-mono)"}}>✓ LOGRADO</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {locked.length>0&&(
+          <>
+            <div style={{fontSize:9,color:"#b0a090",letterSpacing:3,fontFamily:"var(--font-mono)",marginBottom:12}}>PENDIENTES</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {locked.map(a=>(
+                <div key={a.id} style={{background:"#f3f0ea",border:"1px solid #e4ddd4",borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:12,opacity:0.6}}>
+                  <span style={{fontSize:24,flexShrink:0,filter:"grayscale(1)"}}>{a.icon}</span>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:600,color:"#8c7c6c",fontFamily:"var(--font-sans)"}}>{a.title}</div>
+                    <div style={{fontSize:11,color:"#b0a090",fontFamily:"var(--font-sans)",marginTop:2}}>{a.desc}</div>
+                  </div>
+                  <div style={{marginLeft:"auto",fontSize:9,color:"#d4ccc4",letterSpacing:2,fontFamily:"var(--font-mono)"}}>🔒</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
    HOME
 ================================================================ */
 function Home({curriculum,progress,onLevel}){
+  const [showAch,setShowAch]=useState(false);
   const totalL=curriculum.reduce((a,l)=>a+l.lessons.length,0);
   const doneL=Object.keys(progress.done).length;
   const gPct=totalL?Math.round((doneL/totalL)*100):0;
@@ -981,7 +1138,7 @@ function Home({curriculum,progress,onLevel}){
   return(
     <div style={{minHeight:"100vh",background:"#f7f4ef",display:"flex",flexDirection:"column"}}>
       {/* Hero */}
-      <div style={{padding:"36px 28px 28px",position:"relative",overflow:"hidden"}}>
+      <div style={{padding:"var(--pad-page)",position:"relative",overflow:"hidden"}}>
         {/* Dot pattern decorativo */}
         <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(#d4ccc460 1px,transparent 1px)",backgroundSize:"24px 24px",pointerEvents:"none"}}/>
         {/* Warm orb */}
@@ -992,7 +1149,7 @@ function Home({curriculum,progress,onLevel}){
 
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}}>
             <div>
-              <h1 style={{fontSize:38,fontWeight:900,margin:0,color:"#1c1108",letterSpacing:-2,lineHeight:1,fontFamily:"var(--font-sans)"}}>
+              <h1 style={{fontSize:"var(--font-hero)",fontWeight:900,margin:0,color:"#1c1108",letterSpacing:-2,lineHeight:1,fontFamily:"var(--font-sans)"}}>
                 DEV PROTAGONIST
                 <br/>
                 <span style={{color:"#059669"}}>ACADEMY</span>
@@ -1002,7 +1159,7 @@ function Home({curriculum,progress,onLevel}){
             </div>
             <div style={{textAlign:"right",flexShrink:0}}>
               <div style={{fontSize:9,color:"#b0a090",letterSpacing:3,marginBottom:6,fontFamily:"var(--font-mono)"}}>XP ACUMULADO</div>
-              <div style={{fontSize:40,fontWeight:900,color:"#1c1108",lineHeight:1,fontFamily:"var(--font-mono)"}}>{progress.xp.toLocaleString()}</div>
+              <div style={{fontSize:"var(--font-xp)",fontWeight:900,color:"#1c1108",lineHeight:1,fontFamily:"var(--font-mono)"}}>{progress.xp.toLocaleString()}</div>
               <div style={{fontSize:9,color:"#b0a090",marginTop:4,fontFamily:"var(--font-mono)"}}>/ {totalXp.toLocaleString()} XP</div>
               {(progress.streak||0)>0&&(
                 <div style={{fontSize:11,color:"#fb923c",marginTop:8,fontFamily:"var(--font-mono)"}}>🔥 {progress.streak} {progress.streak===1?"día":"días"}</div>
@@ -1011,13 +1168,17 @@ function Home({curriculum,progress,onLevel}){
           </div>
 
           {/* Stats row */}
-          <div style={{display:"flex",gap:16,marginBottom:20}}>
+          <div style={{display:"flex",gap:"clamp(8px,3vw,16px)",marginBottom:20}}>
             {[
               {label:"LECCIONES",val:`${doneL}/${totalL}`,color:"#059669"},
               {label:"COMPLETADO",val:`${gPct}%`,color:"#0369a1"},
               {label:"NIVELES",val:`${curriculum.filter(l=>!l.locked).length}/6`,color:"#7c3aed"},
+              {label:"LOGROS",val:`${ACHIEVEMENTS.filter(a=>a.check(progress)).length}/${ACHIEVEMENTS.length}`,color:"#f59e0b",onClick:()=>setShowAch(true)},
             ].map(stat=>(
-              <div key={stat.label} style={{flex:1,background:"#ffffff",border:"1px solid #e4ddd4",borderRadius:10,padding:"12px 14px",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.04)"}}>
+              <div key={stat.label} onClick={stat.onClick}
+                style={{flex:1,background:"#ffffff",border:"1px solid #e4ddd4",borderRadius:10,padding:"12px 14px",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.04)",cursor:stat.onClick?"pointer":"default",transition:"all .2s"}}
+                onMouseEnter={e=>{if(stat.onClick){e.currentTarget.style.borderColor="#fcd34d80";e.currentTarget.style.boxShadow="0 4px 12px #f59e0b12";}}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor="#e4ddd4";e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)";}}>
                 <div style={{fontSize:9,color:"#b0a090",letterSpacing:2,marginBottom:6,fontFamily:"var(--font-mono)"}}>{stat.label}</div>
                 <div style={{fontSize:20,fontWeight:800,color:stat.color,fontFamily:"var(--font-mono)"}}>{stat.val}</div>
               </div>
@@ -1038,7 +1199,7 @@ function Home({curriculum,progress,onLevel}){
       </div>
 
       {/* Level cards */}
-      <div style={{flex:1,overflowY:"auto",padding:"4px 28px 28px",display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{flex:1,overflowY:"auto",padding:`4px var(--pad-page) var(--pad-page)`,display:"flex",flexDirection:"column",gap:12}}>
         {curriculum.map((lvl)=>{
           const lDone=lvl.lessons.filter(l=>progress.done[l.id]).length;
           const lTotal=lvl.lessons.length;
@@ -1105,10 +1266,12 @@ function Home({curriculum,progress,onLevel}){
       </div>
 
       {/* Footer */}
-      <div style={{padding:"14px 28px",borderTop:"1px solid #e4ddd4",display:"flex",justifyContent:"space-between",alignItems:"center",background:"#ffffff",flexWrap:"wrap",gap:8}}>
+      <div style={{padding:"14px var(--pad-page)",borderTop:"1px solid #e4ddd4",display:"flex",justifyContent:"space-between",alignItems:"center",background:"#ffffff",flexWrap:"wrap",gap:8}}>
         <span style={{fontSize:9,color:"#b0a090",letterSpacing:2,fontFamily:"var(--font-mono)"}}>DEV PROTAGONIST ACADEMY v2</span>
-        <span style={{fontSize:10,color:"#8c7c6c",fontFamily:"var(--font-sans)"}}>© 2026 H. D. Halliwell. Todos los derechos reservados. Genius Cooper™</span>
+        <span style={{fontSize:10,color:"#8c7c6c",fontFamily:"var(--font-sans)"}}>© {new Date().getFullYear()} H. D. Halliwell. Todos los derechos reservados. Genius Cooper™</span>
       </div>
+
+      {showAch&&<AchievementsPanel progress={progress} onClose={()=>setShowAch(false)}/>}
     </div>
   );
 }
