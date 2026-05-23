@@ -1105,9 +1105,9 @@ function Home({curriculum,progress,onLevel}){
       </div>
 
       {/* Footer */}
-      <div style={{padding:"12px 28px",borderTop:"1px solid #e4ddd4",display:"flex",justifyContent:"space-between",alignItems:"center",background:"#ffffff"}}>
-        <span style={{fontSize:9,color:"#b0a090",letterSpacing:2,fontFamily:"var(--font-mono)"}}>DEV PROTAGONIST ACADEMY v2</span>
-        <span style={{fontSize:9,color:"#b0a090",letterSpacing:2,fontFamily:"var(--font-mono)"}}>DANNY · MX 🇲🇽</span>
+      <div style={{padding:"14px 28px",borderTop:"1px solid #e4ddd4",display:"flex",justifyContent:"space-between",alignItems:"center",background:"#ffffff",flexWrap:"wrap",gap:8}}>
+        <span style={{fontSize:10,color:"#8c7c6c",fontFamily:"var(--font-sans)"}}>© 2026 H. D. Halliwell. Todos los derechos reservados.</span>
+        <span style={{fontSize:10,color:"#5c4838",fontFamily:"var(--font-sans)",fontWeight:600,letterSpacing:0.3}}>Genius Cooper™</span>
       </div>
     </div>
   );
